@@ -1,8 +1,8 @@
-name: Freesound Dynamic Automation
+name: Pure Nature Final Automation
 
 on:
   schedule:
-    # 6:00 AM, 9:00 AM, 12:00 PM, 3:00 PM IST
+    # 06:00, 09:00, 12:00, 15:00 IST
     - cron: '30 0,3,6,9 * * *'
   workflow_dispatch:
 
@@ -14,15 +14,22 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v3
+
       - name: Setup Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.9'
-      - name: Install Dependencies
+
+      - name: Install System Dependencies
         run: |
-          sudo apt-get update && sudo apt-get install -y ffmpeg
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+
+      - name: Install Python Packages
+        run: |
           pip install requests moviepy==1.0.3 decorator==4.4.2
-      - name: Run Automation
+
+      - name: Run
         env:
           PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
           FREESOUND_API_KEY: ${{ secrets.FREESOUND_API_KEY }}
@@ -30,10 +37,11 @@ jobs:
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           MAKE_WEBHOOK_URL: ${{ secrets.MAKE_WEBHOOK_URL }}
         run: python main.py
+
       - name: Sync History
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "Bot"
           git add posted_videos.txt
-          git commit -m "update video history" || echo "no changes"
+          git commit -m "update history" || echo "no changes"
           git push
