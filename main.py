@@ -2,21 +2,24 @@ import requests
 import random
 import os
 
-# API Keys (GitHub Secrets)
+# API Keys from GitHub Secrets
 PEXELS_API_KEY = os.getenv('PEXELS_API_KEY')
 TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
 TELEGRAM_CHAT_ID = os.getenv('TELEGRAM_CHAT_ID')
 MAKE_WEBHOOK_URL = os.getenv('MAKE_WEBHOOK_URL')
 
-# Aapke STRICT Nature Topics
+# Aapke naye Strict Topics
 STRICT_TOPICS = [
-    "lush green nature", "peaceful greenery", "fresh green landscape", 
-    "green hills fog", "village greenery", "rain forest green", "calm green background"
+    "Wild Green Forests", "Green Mountains", "Natural Valleys", 
+    "Rainforests", "Grasslands", "Wildflower Meadows", 
+    "Forest Floor Flowers", "Riverbank Vegetation", 
+    "Alpine Flowers", "Seasonal Wildflowers"
 ]
 
-def get_real_video():
+def get_unique_nature_video():
     query = random.choice(STRICT_TOPICS)
-    url = f"https://api.pexels.com/videos/search?query={query}&per_page=15&orientation=portrait"
+    # Background music/nature sound wale videos ke liye search
+    url = f"https://api.pexels.com/videos/search?query={query}&per_page=20&orientation=portrait"
     headers = {"Authorization": PEXELS_API_KEY}
     
     try:
@@ -31,6 +34,7 @@ def get_real_video():
         for vid in videos:
             if str(vid['id']) not in posted_ids:
                 video_files = vid.get('video_files', [])
+                # HD link select karna
                 video_link = next((f['link'] for f in video_files if f['quality'] == 'hd'), video_files[0]['link'])
                 
                 with open('posted_videos.txt', 'a') as f:
@@ -40,21 +44,21 @@ def get_real_video():
         print(f"Error: {e}")
     return None, None
 
-def post_now():
-    v_url, topic = get_real_video()
+def post_content():
+    v_url, topic = get_unique_nature_video()
     if not v_url: return
 
-    # Exactly 8 Hashtags as requested
-    hashtags = "#nature #greenery #peace #forest #landscape #fresh #serenity #naturelovers"
-    caption = f"🌿 Pure {topic.title()}\n\nExperience the healing power of greenery. ✨\n\n{hashtags}"
+    # 8 Fixed Hashtags
+    hashtags = "#nature #greenery #wildlife #forest #flowers #mountains #serenity #naturephotography"
+    caption = f"🌿 {topic}\n\nExperience the beauty of nature with soothing background sounds. ✨\n\n{hashtags}"
 
-    # Telegram Post
+    # 1. Post to Telegram
     requests.post(f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendVideo", 
                   data={"chat_id": TELEGRAM_CHAT_ID, "video": v_url, "caption": caption})
 
-    # Make.com Automatic Post
+    # 2. Post to Make.com Webhook
     if MAKE_WEBHOOK_URL:
-        requests.post(MAKE_WEBHOOK_URL, json={"video_url": v_url, "caption": caption})
+        requests.post(MAKE_WEBHOOK_URL, json={"video_url": v_url, "caption": caption, "title": topic})
 
 if __name__ == "__main__":
-    post_now()
+    post_content()
