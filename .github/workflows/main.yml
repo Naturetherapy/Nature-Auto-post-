@@ -1,32 +1,40 @@
-name: Pure Nature Daily Automation
+name: Pure Nature Final Automation
 
 on:
   schedule:
-    # 6:00 AM IST (00:30 UTC)
-    # 9:00 AM IST (03:30 UTC)
-    # 12:00 PM IST (06:30 UTC)
-    # 3:00 PM IST (09:30 UTC)
+    # GitHub UTC time follow karta hai (IST - 5:30)
+    # 00:30 UTC = 06:00 AM IST
+    # 03:30 UTC = 09:00 AM IST
+    # 06:30 UTC = 12:00 PM IST
+    # 09:30 UTC = 03:00 PM IST
     - cron: '30 0,3,6,9 * * *'
-  workflow_dispatch:
+  workflow_dispatch: # Manual test button ke liye
 
 jobs:
-  run-bot:
+  build:
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: write # Taaki posted_videos.txt update ho sake
+
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v3
 
-      - name: Setup Python
+      - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.9'
 
-      - name: Install Requirements
-        run: pip install requests
+      - name: Install System Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg # Video mein music add karne ke liye zaroori hai
 
-      - name: Execute Nature Post
+      - name: Install Python Libraries
+        run: |
+          pip install requests moviepy
+
+      - name: Run Automation Script
         env:
           PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
@@ -34,10 +42,11 @@ jobs:
           MAKE_WEBHOOK_URL: ${{ secrets.MAKE_WEBHOOK_URL }}
         run: python main.py
 
-      - name: Save History
+      - name: Commit and Push Video History
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action Bot"
           git add posted_videos.txt
-          git commit -m "Update video history" || echo "No changes"
+          # Agar koi naya video post hua hai tabhi commit karega
+          git commit -m "Update posted videos history [skip ci]" || echo "No changes to commit"
           git push
