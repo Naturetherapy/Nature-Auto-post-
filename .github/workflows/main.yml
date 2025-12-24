@@ -2,35 +2,37 @@ name: Pure Nature Fixed Final
 
 on:
   schedule:
-    # 6AM, 9AM, 12PM, 3PM IST
+    # Aapke bataye hue 4 times (IST): 6AM, 9AM, 12PM, 3PM
     - cron: '30 0,3,6,9 * * *'
-  workflow_dispatch:
+  workflow_dispatch: # Test button ke liye
 
 jobs:
   build:
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: write # Taaki posted_videos.txt update ho sake
     steps:
-      - name: Checkout
-        uses: checkout@v3
+      - name: Checkout Code
+        uses: actions/checkout@v3
 
       - name: Setup Python
-        uses: setup-python@v4
+        uses: actions/setup-python@v4
         with:
           python-version: '3.9'
 
       - name: Install System Dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y ffmpeg
+          sudo apt-get install -y ffmpeg # Video processing ke liye
 
       - name: Install Python Packages
         run: |
+          pip install --upgrade pip
           pip install requests
-          pip install moviepy==1.0.3 # Error fix karne ke liye stable version use karein
+          # Stable version install kar rahe hain jo errors nahi dega
+          pip install moviepy==1.0.3 decorator==4.4.2 
 
-      - name: Run
+      - name: Run Script
         env:
           PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
@@ -38,10 +40,10 @@ jobs:
           MAKE_WEBHOOK_URL: ${{ secrets.MAKE_WEBHOOK_URL }}
         run: python main.py
 
-      - name: Sync History
+      - name: Sync Video History
         run: |
           git config --local user.email "action@github.com"
-          git config --local user.name "Bot"
+          git config --local user.name "GitHub Action Bot"
           git add posted_videos.txt
-          git commit -m "update" || echo "no changes"
+          git commit -m "update history [skip ci]" || echo "No changes"
           git push
