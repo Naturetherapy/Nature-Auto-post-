@@ -1,9 +1,8 @@
-name: Pure Nature Final Automation
+name: Pure Nature Fixed Automation
 
 on:
   schedule:
-    # 06:00, 09:00, 12:00, 15:00 IST
-    - cron: '30 0,3,6,9 * * *'
+    - cron: '30 0,3,6,9 * * *' # 6AM, 9AM, 12PM, 3PM IST
   workflow_dispatch:
 
 jobs:
@@ -14,30 +13,23 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v3
-
       - name: Setup Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.9'
-
       - name: Install System Dependencies
         run: |
-          sudo apt-get update
-          sudo apt-get install -y ffmpeg
-
+          sudo apt-get update && sudo apt-get install -y ffmpeg
       - name: Install Python Packages
         run: |
           pip install requests moviepy==1.0.3 decorator==4.4.2
-
-      - name: Run
+      - name: Run Automation
         env:
           PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
           FREESOUND_API_KEY: ${{ secrets.FREESOUND_API_KEY }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-          MAKE_WEBHOOK_URL: ${{ secrets.MAKE_WEBHOOK_URL }}
         run: python main.py
-
       - name: Sync History
         run: |
           git config --local user.email "action@github.com"
