@@ -2,46 +2,59 @@ import requests
 import random
 import os
 
-# API Configurations (GitHub Secrets se aayenge)
+# API Keys
 PEXELS_API_KEY = os.getenv('PEXELS_API_KEY')
 TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
 TELEGRAM_CHAT_ID = os.getenv('TELEGRAM_CHAT_ID')
 MAKE_WEBHOOK_URL = os.getenv('MAKE_WEBHOOK_URL')
 
-def get_nature_image():
-    # Pexels se nature image search karna
-    url = "https://api.pexels.com/v1/search?query=nature&per_page=50"
+# Aapke Strict Topics
+STRICT_TOPICS = [
+    "lush green nature", "peaceful greenery", "fresh green landscape", 
+    "green hills fog", "village greenery", "rain forest green", "calm green background"
+]
+
+def get_new_video():
+    query = random.choice(STRICT_TOPICS)
+    url = f"https://api.pexels.com/videos/search?query={query}&per_page=15&orientation=portrait"
     headers = {"Authorization": PEXELS_API_KEY}
     response = requests.get(url, headers=headers).json()
     
-    # Randomly ek photo select karna
-    image = random.choice(response['photos'])
-    img_url = image['src']['large']
-    img_title = image['alt'] if image['alt'] else "Beautiful Nature"
-    return img_url, img_title
+    # History check karne ke liye (Repeated videos rokne ke liye)
+    if not os.path.exists('posted_videos.txt'):
+        open('posted_videos.txt', 'w').close()
+    
+    with open('posted_videos.txt', 'r') as f:
+        posted_ids = f.read().splitlines()
 
-def post_to_telegram(img_url, caption):
-    url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendPhoto"
-    data = {"chat_id": TELEGRAM_CHAT_ID, "photo": img_url, "caption": caption}
-    requests.post(url, data=data)
-    print("Sent to Telegram")
+    videos = response.get('videos', [])
+    for vid in videos:
+        if str(vid['id']) not in posted_ids:
+            # Video mil gaya jo pehle post nahi hua
+            with open('posted_videos.txt', 'a') as f:
+                f.write(str(vid['id']) + '\n')
+            
+            # Best quality video file nikalna
+            video_file = vid['video_files'][0]['link']
+            return video_file, query
 
-def post_to_make_webhook(img_url, title, caption):
-    # Make.com ko data bhejna
-    payload = {
-        "image_url": img_url,
-        "title": title,
-        "caption": caption
-    }
+    return None, None
+
+def post_now(video_url, topic):
+    caption = f"🌿 {topic.title()}\n\nExperience the serenity of nature. ✨\n\n#nature #greenery #peace #environment"
+    
+    # 1. Telegram Post
+    tg_url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendVideo"
+    requests.post(tg_url, data={"chat_id": TELEGRAM_CHAT_ID, "video": video_url, "caption": caption})
+    
+    # 2. Make.com Webhook Post
+    payload = {"video_url": video_url, "topic": topic, "caption": caption}
     requests.post(MAKE_WEBHOOK_URL, json=payload)
-    print("Sent to Make.com Webhook")
 
 if __name__ == "__main__":
-    image_url, title = get_nature_image()
-    
-    # Automated Caption and Hashtags
-    full_caption = f"🌿 {title}\n\nNature's beauty at its best! ✨\n\n#nature #photography #greenery #earth #naturelovers"
-    
-    # Dono platforms par post karein
-    post_to_telegram(image_url, full_caption)
-    post_to_make_webhook(image_url, title, full_caption)
+    v_url, v_topic = get_new_video()
+    if v_url:
+        post_now(v_url, v_topic)
+        print(f"Successfully posted: {v_topic}")
+    else:
+        print("No new videos found.")
