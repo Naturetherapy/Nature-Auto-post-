@@ -1,40 +1,36 @@
-name: Pure Nature Final Automation
+name: Pure Nature Final Fixed
 
 on:
   schedule:
-    # GitHub UTC time follow karta hai (IST - 5:30)
-    # 00:30 UTC = 06:00 AM IST
-    # 03:30 UTC = 09:00 AM IST
-    # 06:30 UTC = 12:00 PM IST
-    # 09:30 UTC = 03:00 PM IST
+    # 6:00 AM, 9:00 AM, 12:00 PM, 3:00 PM IST
     - cron: '30 0,3,6,9 * * *'
-  workflow_dispatch: # Manual test button ke liye
+  workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
     permissions:
-      contents: write # Taaki posted_videos.txt update ho sake
-
+      contents: write
     steps:
-      - name: Checkout Repository
+      - name: Checkout
         uses: actions/checkout@v3
 
-      - name: Set up Python
+      - name: Setup Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.9'
+          python-version: '3.10' # Latest stable version
 
       - name: Install System Dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y ffmpeg # Video mein music add karne ke liye zaroori hai
+          sudo apt-get install -y ffmpeg
 
-      - name: Install Python Libraries
+      - name: Install Python Packages
         run: |
-          pip install requests moviepy
+          pip install --upgrade pip
+          pip install requests moviepy==2.0.0.dev2 # Specific stable dev version
 
-      - name: Run Automation Script
+      - name: Run
         env:
           PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
@@ -42,11 +38,10 @@ jobs:
           MAKE_WEBHOOK_URL: ${{ secrets.MAKE_WEBHOOK_URL }}
         run: python main.py
 
-      - name: Commit and Push Video History
+      - name: Sync History
         run: |
           git config --local user.email "action@github.com"
-          git config --local user.name "GitHub Action Bot"
+          git config --local user.name "Bot"
           git add posted_videos.txt
-          # Agar koi naya video post hua hai tabhi commit karega
-          git commit -m "Update posted videos history [skip ci]" || echo "No changes to commit"
+          git commit -m "update" || echo "no changes"
           git push
