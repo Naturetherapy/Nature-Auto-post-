@@ -1,39 +1,50 @@
-name: Pure Nature Fixed Automation
+name: Pure Nature Final Automation
 
 on:
   schedule:
-    - cron: '30 0,3,6,9 * * *' # 6AM, 9AM, 12PM, 3PM IST
-  workflow_dispatch:
+    # 6:00 AM, 9:00 AM, 12:00 PM, 3:00 PM IST (Indian Standard Time)
+    - cron: '30 0,3,6,9 * * *'
+  workflow_dispatch: # Manual testing ke liye 'Run' button
 
 jobs:
   build:
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: write # Posted videos ki history save karne ke liye
     steps:
-      - name: Checkout
+      - name: Checkout Repository
         uses: actions/checkout@v3
+
       - name: Setup Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.9'
-      - name: Install System Dependencies
+
+      - name: Install FFmpeg
         run: |
-          sudo apt-get update && sudo apt-get install -y ffmpeg
-      - name: Install Python Packages
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg # Video editing ke liye zaroori
+
+      - name: Install Python Libraries
         run: |
-          pip install requests moviepy==1.0.3 decorator==4.4.2
-      - name: Run Automation
+          pip install requests
+          # MoviePy ka stable version taaki ImportError na aaye
+          pip install moviepy==1.0.3 decorator==4.4.2 
+
+      - name: Run Nature Automation
         env:
+          # In sabhi ko GitHub Secrets mein add karna zaroori hai
           PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
           FREESOUND_API_KEY: ${{ secrets.FREESOUND_API_KEY }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          MAKE_WEBHOOK_URL: ${{ secrets.MAKE_WEBHOOK_URL }}
         run: python main.py
-      - name: Sync History
+
+      - name: Sync History and Push
         run: |
           git config --local user.email "action@github.com"
-          git config --local user.name "Bot"
+          git config --local user.name "GitHub Action Bot"
           git add posted_videos.txt
-          git commit -m "update history" || echo "no changes"
+          git commit -m "Update posted videos history [skip ci]" || echo "No changes to commit"
           git push
