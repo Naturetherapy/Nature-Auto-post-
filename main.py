@@ -1,14 +1,14 @@
 import requests
 import random
 import os
+from moviepy.editor import VideoFileClip, AudioFileClip
 
-# API Keys from GitHub Secrets
+# API Keys
 PEXELS_API_KEY = os.getenv('PEXELS_API_KEY')
 TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
 TELEGRAM_CHAT_ID = os.getenv('TELEGRAM_CHAT_ID')
 MAKE_WEBHOOK_URL = os.getenv('MAKE_WEBHOOK_URL')
 
-# Aapke naye Strict Topics
 STRICT_TOPICS = [
     "Wild Green Forests", "Green Mountains", "Natural Valleys", 
     "Rainforests", "Grasslands", "Wildflower Meadows", 
@@ -16,49 +16,57 @@ STRICT_TOPICS = [
     "Alpine Flowers", "Seasonal Wildflowers"
 ]
 
-def get_unique_nature_video():
+def add_background_music(video_path, music_path, output_path):
+    video = VideoFileClip(video_path)
+    audio = AudioFileClip(music_path).subclip(0, video.duration)
+    # Music add karna aur volume set karna
+    final_video = video.set_audio(audio)
+    final_video.write_videofile(output_path, codec="libx264", audio_codec="aac")
+    return output_path
+
+def get_video_and_process():
     query = random.choice(STRICT_TOPICS)
-    # Background music/nature sound wale videos ke liye search
-    url = f"https://api.pexels.com/videos/search?query={query}&per_page=20&orientation=portrait"
+    url = f"https://api.pexels.com/videos/search?query={query}&per_page=15&orientation=portrait"
     headers = {"Authorization": PEXELS_API_KEY}
     
-    try:
-        response = requests.get(url, headers=headers).json()
-        if not os.path.exists('posted_videos.txt'):
-            open('posted_videos.txt', 'w').close()
-        
-        with open('posted_videos.txt', 'r') as f:
-            posted_ids = f.read().splitlines()
+    response = requests.get(url, headers=headers).json()
+    videos = response.get('videos', [])
+    
+    # Repeat check logic
+    if not os.path.exists('posted_videos.txt'): open('posted_videos.txt', 'w').close()
+    with open('posted_videos.txt', 'r') as f: posted_ids = f.read().splitlines()
 
-        videos = response.get('videos', [])
-        for vid in videos:
-            if str(vid['id']) not in posted_ids:
-                video_files = vid.get('video_files', [])
-                # HD link select karna
-                video_link = next((f['link'] for f in video_files if f['quality'] == 'hd'), video_files[0]['link'])
-                
-                with open('posted_videos.txt', 'a') as f:
-                    f.write(str(vid['id']) + '\n')
-                return video_link, query
-    except Exception as e:
-        print(f"Error: {e}")
+    for vid in videos:
+        if str(vid['id']) not in posted_ids:
+            v_url = vid['video_files'][0]['link']
+            
+            # Video download karna editing ke liye
+            with open("temp_video.mp4", 'wb') as f:
+                f.write(requests.get(v_url).content)
+            
+            # Background Music add karna
+            final_file = add_background_music("temp_video.mp4", "music/nature_bg.mp3", "final_output.mp4")
+            
+            with open('posted_videos.txt', 'a') as f: f.write(str(vid['id']) + '\n')
+            return "final_output.mp4", query
+
     return None, None
 
-def post_content():
-    v_url, topic = get_unique_nature_video()
-    if not v_url: return
+def post_all():
+    file_path, topic = get_video_and_process()
+    if not file_path: return
 
-    # 8 Fixed Hashtags
     hashtags = "#nature #greenery #wildlife #forest #flowers #mountains #serenity #naturephotography"
-    caption = f"🌿 {topic}\n\nExperience the beauty of nature with soothing background sounds. ✨\n\n{hashtags}"
+    caption = f"🌿 {topic}\n\nPure nature vibes with soothing background music. ✨\n\n{hashtags}"
 
-    # 1. Post to Telegram
-    requests.post(f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendVideo", 
-                  data={"chat_id": TELEGRAM_CHAT_ID, "video": v_url, "caption": caption})
+    # Telegram Post (Local File)
+    with open(file_path, 'rb') as video:
+        requests.post(f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendVideo", 
+                      data={"chat_id": TELEGRAM_CHAT_ID, "caption": caption}, files={"video": video})
 
-    # 2. Post to Make.com Webhook
+    # Make.com Post (File link ke liye aapko cloud storage chahiye hoga, ya caption bhej sakte hain)
     if MAKE_WEBHOOK_URL:
-        requests.post(MAKE_WEBHOOK_URL, json={"video_url": v_url, "caption": caption, "title": topic})
+        requests.post(MAKE_WEBHOOK_URL, json={"topic": topic, "caption": caption, "status": "Video processed with music"})
 
 if __name__ == "__main__":
-    post_content()
+    post_all()
