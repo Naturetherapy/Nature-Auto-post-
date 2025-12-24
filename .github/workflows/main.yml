@@ -1,15 +1,21 @@
-name: Daily Nature Automation
+name: Automatic Nature Post
 
 on:
   schedule:
-    - cron: '0 0,6,12,18 * * *' # Indian Time: 5:30 AM, 11:30 AM, 5:30 PM, 11:30 PM approx
-  workflow_dispatch: # Manual test button
+    # 00:30 UTC = 6:00 AM IST
+    # 03:30 UTC = 9:00 AM IST
+    # 06:30 UTC = 12:00 PM IST
+    # 09:30 UTC = 3:00 PM IST
+    - cron: '30 0,3,6,9 * * *'
+  workflow_dispatch: # Button to test manually
 
 jobs:
-  run-bot:
+  build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
-      - name: Checkout Code
+      - name: Checkout repository
         uses: actions/checkout@v3
 
       - name: Setup Python
@@ -17,13 +23,21 @@ jobs:
         with:
           python-version: '3.9'
 
-      - name: Install Dependencies
+      - name: Install requests
         run: pip install requests
 
-      - name: Execute Script
+      - name: Run automation script
         env:
           PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           MAKE_WEBHOOK_URL: ${{ secrets.MAKE_WEBHOOK_URL }}
         run: python main.py
+
+      - name: Save history to avoid repeats
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add posted_videos.txt
+          git commit -m "Update video history [skip ci]" || echo "No changes to commit"
+          git push
