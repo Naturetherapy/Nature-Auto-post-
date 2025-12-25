@@ -1,32 +1,40 @@
-name: Fixed Nature Automation
+name: Pure Nature Automation Final
 
 on:
   schedule:
-    - cron: '30 0,6,12,18 * * *'
-  workflow_dispatch:
+    # Din mein 4 baar chalega (Har 6 ghante mein)
+    - cron: '0 0,6,12,18 * * *'
+  workflow_dispatch: # Manual button GitHub par
 
 jobs:
-  run-bot:
+  build-and-run:
     runs-on: ubuntu-latest
+    
+    # Permission for GitHub to write history to the repository
     permissions:
       contents: write
-    steps:
-      - uses: actions/checkout@v3
 
-      - name: Install Full FFmpeg
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y ffmpeg libavcodec-extra
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
 
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.9'
 
-      - name: Install Requests
-        run: pip install requests
+      - name: Install System FFmpeg
+        # Merging ke liye FFmpeg aur codecs install karna compulsory hai
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg libavcodec-extra
 
-      - name: Run Main Script
+      - name: Install Python Dependencies
+        run: |
+          pip install requests
+
+      - name: Run Nature Bot
+        # Sari API keys GitHub Secrets se uthayi jayengi
         env:
           PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
           FREESOUND_API_KEY: ${{ secrets.FREESOUND_API_KEY }}
@@ -35,10 +43,11 @@ jobs:
           MAKE_WEBHOOK_URL: ${{ secrets.MAKE_WEBHOOK_URL }}
         run: python main.py
 
-      - name: Sync History
+      - name: Commit and Push History
+        # Posted videos ki list ko update karna taaki video repeat na ho
         run: |
-          git config --local user.email "action@github.com"
-          git config --local user.name "GitHub Action"
+          git config --local user.email "bot@github.com"
+          git config --local user.name "GitHub Action Bot"
           git add posted_videos.txt
-          git commit -m "Update history [skip ci]" || echo "No changes"
+          git commit -m "Auto-update video history [skip ci]" || echo "No changes to commit"
           git push
