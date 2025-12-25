@@ -1,29 +1,32 @@
-name: Pure Nature Automation
+name: Fixed Nature Automation
 
 on:
   schedule:
-    - cron: '30 0,3,6,9 * * *' # Every 3 hours
+    - cron: '30 0,6,12,18 * * *'
   workflow_dispatch:
 
 jobs:
-  build:
+  run-bot:
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
       - uses: actions/checkout@v3
 
+      - name: Install Full FFmpeg
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg libavcodec-extra
+
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.9'
 
-      - name: Install FFmpeg and Libraries
-        run: |
-          sudo apt-get update && sudo apt-get install -y ffmpeg
-          pip install requests moviepy==1.0.3 decorator==4.4.2
+      - name: Install Requests
+        run: pip install requests
 
-      - name: Run Automation
+      - name: Run Main Script
         env:
           PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
           FREESOUND_API_KEY: ${{ secrets.FREESOUND_API_KEY }}
@@ -32,10 +35,10 @@ jobs:
           MAKE_WEBHOOK_URL: ${{ secrets.MAKE_WEBHOOK_URL }}
         run: python main.py
 
-      - name: Commit and Push History
+      - name: Sync History
         run: |
-          git config --local user.email "bot@github.com"
-          git config --local user.name "GitHub Bot"
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
           git add posted_videos.txt
-          git commit -m "Sync history [skip ci]" || echo "No changes"
+          git commit -m "Update history [skip ci]" || echo "No changes"
           git push
