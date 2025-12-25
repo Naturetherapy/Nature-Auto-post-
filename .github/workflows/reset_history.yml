@@ -1,16 +1,16 @@
-name: Auto Daily History Reset
+name: Daily 24h History Reset
 
 on:
   schedule:
-    # Yeh har raat 12:00 AM UTC (5:30 AM IST) par chalega
+    # Yeh har 24 ghante mein ek baar chalega (Midnight UTC / 5:30 AM IST)
     - cron: '0 0 * * *'
-  workflow_dispatch: # Manual button bhi rahega safe side ke liye
+  workflow_dispatch: # Manual button taaki aap jab chahe tab reset kar sakein
 
 jobs:
-  reset:
+  reset-job:
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: write # Repository mein file change karne ki permission
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v3
@@ -23,6 +23,6 @@ jobs:
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action Bot"
           git add posted_videos.txt
-          # Sirf tabhi push karega jab file khali hui ho
-          git commit -m "Auto Reset History after 24 hours [skip ci]" || echo "No changes to commit"
+          # Skip CI taaki reset hone par main automation trigger na ho
+          git commit -m "Auto Reset History [skip ci]" || echo "No changes to commit"
           git push
