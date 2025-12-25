@@ -23,22 +23,26 @@ STRICT_TOPICS = [
     "sunlight rays through forest trees"
 ]
 
+# Dynamic Content Lists
 DYNAMIC_TITLES = ["Pure Nature", "Wild Beauty", "Earth Magic", "Nature View", "Green Serene", "Deep Nature", "Quiet Wild", "Raw Earth"]
 DYNAMIC_CAPTIONS = ["Magic is real", "Silent forest", "Peaceful vibes", "Clean nature", "Green world", "Fresh air", "Hidden gem", "Pure spirit"]
 
+# Minimum 8 Hashtags
+HASHTAGS = "#nature #wildlife #serenity #earth #landscape #adventure #explore #greenery #scenery #wildlifephotography #naturelovers"
+
 def check_and_reset_history(file_path):
-    """Agar 1 din (24 ghante) beet gaye hain toh history saaf karna"""
+    """24 ghante baad history saaf karna"""
     if os.path.exists(file_path):
         file_age_seconds = time.time() - os.path.getmtime(file_path)
-        if file_age_seconds >= 86400: # 24 hours
+        if file_age_seconds >= 86400: # 24 Hours
             with open(file_path, 'w') as f:
                 f.write('')
-            print("History Reset: 1 din poora ho gaya.")
+            print("History Reset: 24 ghante poore ho gaye.")
             return True
     return False
 
 def get_dynamic_music():
-    """Har baar random nature music dhoondhna [cite: 2025-12-23]"""
+    """Dynamic Nature Music (Freesound) [cite: 2025-12-23]"""
     try:
         random_page = random.randint(1, 100)
         url = f"https://freesound.org/apiv2/search/text/?query=nature+ambient+birds&token={FREESOUND_API_KEY}&filter=duration:[10 TO 60]&fields=id,previews&page={random_page}"
@@ -52,7 +56,7 @@ def get_dynamic_music():
     except: return None
 
 def add_bg_music(v_path, m_path, out_path):
-    """Audio merge logic [cite: 2025-12-23]"""
+    """Audio-Video Merging [cite: 2025-12-23]"""
     try:
         video = mp.VideoFileClip(v_path)
         audio = mp.AudioFileClip(m_path)
@@ -68,7 +72,6 @@ def add_bg_music(v_path, m_path, out_path):
 
 def run_automation():
     history_file = 'posted_videos.txt'
-    # Auto-Reset check har run par
     check_and_reset_history(history_file)
     
     if not os.path.exists(history_file): open(history_file, 'w').close()
@@ -91,14 +94,17 @@ def run_automation():
             if music:
                 final = add_bg_music("temp.mp4", music, "final.mp4")
                 if final:
+                    # Dynamic Title, Caption, aur 8+ Hashtags
                     title = random.choice(DYNAMIC_TITLES)[:15]
                     caption = random.choice(DYNAMIC_CAPTIONS)[:15]
-                    full_desc = f"🎬 {title}\n\n{caption}\n\n#nature #greenery"
+                    full_desc = f"🎬 {title}\n\n{caption}\n\n{HASHTAGS}"
                     
+                    # Post to Telegram
                     with open(final, 'rb') as v:
                         requests.post(f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendVideo", 
                                       data={"chat_id": TELEGRAM_CHAT_ID, "caption": full_desc}, files={"video": v})
                     
+                    # Post to Make.com Webhook
                     if MAKE_WEBHOOK_URL:
                         requests.post(MAKE_WEBHOOK_URL, json={"title": title, "video_url": best_v, "caption": full_desc})
 
