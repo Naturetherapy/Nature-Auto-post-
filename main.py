@@ -41,15 +41,16 @@ def get_dynamic_music():
     except: return None
 
 def merge_now(v_path, m_path, out_path):
-    """FFmpeg Merge: Physical lock of audio and video"""
+    """Compulsory Merging Logic: Physically mixing video and audio"""
     try:
+        # Command jo audio aur video ko lock karke ek file bana degi
         cmd = [
             'ffmpeg', '-y', '-i', v_path, '-stream_loop', '-1', '-i', m_path,
             '-c:v', 'libx264', '-c:a', 'aac', '-map', '0:v:0', '-map', '1:a:0',
             '-shortest', '-pix_fmt', 'yuv420p', out_path
         ]
         subprocess.run(cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        return os.path.exists(out_path) and os.path.getsize(out_path) > 5000
+        return os.path.exists(out_path) and os.path.getsize(out_path) > 10000
     except: return False
 
 def run_automation():
@@ -66,29 +67,36 @@ def run_automation():
     for vid in videos:
         if str(vid['id']) not in posted_ids and 5 <= vid.get('duration', 0) <= 15:
             v_url = next(f['link'] for f in vid['video_files'] if f['width'] >= 720)
+            
+            # 1. Download Video
             with open("raw.mp4", 'wb') as f: f.write(requests.get(v_url).content)
             
+            # 2. Download Music [cite: 2025-12-23]
             music = get_dynamic_music()
+            
             if music:
-                final_video = "final_output.mp4"
+                final_video = "final_ready.mp4"
+                # 3. MERGE PROCESS (Compulsory)
                 if merge_now("raw.mp4", music, final_video):
                     title = random.choice(DYNAMIC_TITLES)[:15]
                     caption = random.choice(DYNAMIC_CAPTIONS)[:15]
                     full_desc = f"🎬 {title}\n\n{caption}\n\n{HASHTAGS}"
 
-                    # 1. Telegram Post (Merged file)
+                    # 4. SEND TO TELEGRAM (Merged File)
                     with open(final_video, 'rb') as v:
                         requests.post(f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendVideo", 
                                       data={"chat_id": TELEGRAM_CHAT_ID, "caption": full_desc}, files={"video": v})
                     
-                    # 2. Make.com Webhook (SOLVED: Sending Merged File instead of URL)
+                    # 5. SEND TO WEBHOOK (Merged File - Solves Make.com Audio Issue)
                     if MAKE_WEBHOOK_URL:
                         with open(final_video, 'rb') as v:
                             files = {'file': (final_video, v, 'video/mp4')}
                             data = {'title': title, 'caption': full_desc}
+                            # Is baar URL nahi, poori file bhej rahe hain
                             requests.post(MAKE_WEBHOOK_URL, data=data, files=files)
 
                     with open(history_file, 'a') as f: f.write(str(vid['id']) + '\n')
+                    print(f"Success: Video with Audio sent to all platforms!")
                     return
 
 if __name__ == "__main__":
