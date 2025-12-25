@@ -1,0 +1,28 @@
+name: Auto Daily History Reset
+
+on:
+  schedule:
+    # Yeh har raat 12:00 AM UTC (5:30 AM IST) par chalega
+    - cron: '0 0 * * *'
+  workflow_dispatch: # Manual button bhi rahega safe side ke liye
+
+jobs:
+  reset:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Run Reset Script
+        run: python reset_history.py
+
+      - name: Commit and Push Changes
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action Bot"
+          git add posted_videos.txt
+          # Sirf tabhi push karega jab file khali hui ho
+          git commit -m "Auto Reset History after 24 hours [skip ci]" || echo "No changes to commit"
+          git push
