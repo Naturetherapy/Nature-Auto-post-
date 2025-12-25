@@ -1,8 +1,8 @@
-name: Nature Music Fix Automation
+name: Pure Nature Automation
 
 on:
   schedule:
-    - cron: '30 0,3,6,9 * * *' # 6AM, 9AM, 12PM, 3PM IST
+    - cron: '30 0,3,6,9 * * *' # Every 3 hours
   workflow_dispatch:
 
 jobs:
@@ -12,17 +12,17 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v3
-      
-      - uses: actions/setup-python@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
         with:
           python-version: '3.9'
-          
-      - name: Install Tools
+
+      - name: Install FFmpeg and Libraries
         run: |
-          sudo apt-get update
-          sudo apt-get install -y ffmpeg
+          sudo apt-get update && sudo apt-get install -y ffmpeg
           pip install requests moviepy==1.0.3 decorator==4.4.2
-          
+
       - name: Run Automation
         env:
           PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
@@ -31,11 +31,11 @@ jobs:
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           MAKE_WEBHOOK_URL: ${{ secrets.MAKE_WEBHOOK_URL }}
         run: python main.py
-        
-      - name: Save Status
+
+      - name: Commit and Push History
         run: |
           git config --local user.email "bot@github.com"
-          git config --local user.name "Bot"
+          git config --local user.name "GitHub Bot"
           git add posted_videos.txt
-          git commit -m "sync logs" || echo "nothing to commit"
+          git commit -m "Sync history [skip ci]" || echo "No changes"
           git push
