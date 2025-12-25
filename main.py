@@ -13,10 +13,13 @@ MAKE_WEBHOOK_URL = os.getenv('MAKE_WEBHOOK_URL')
 
 # Ultra-Strict Nature Topics
 STRICT_TOPICS = [
-    "deep ocean waves no people", "crystal clear waterfall rocks",
-    "underwater coral reef", "misty pine forest aerial",
-    "wildflower meadow no fence", "snowy mountain peaks",
-    "desert sand dunes wind", "moving clouds timelapse"
+    "deep ocean waves white foam no people", "crystal clear waterfall rocks no bridge",
+    "underwater coral reef fish", "frozen lake ice patterns", "mountain stream forest rocks",
+    "misty pine forest aerial", "rainforest canopy bird eye view", "autumn leaves macro texture",
+    "wildflower meadow no fence", "bamboo grove sunlight", "snowy mountain peaks blue sky",
+    "desert sand dunes wind", "red rock deep canyon", "volcanic lava landscape raw earth",
+    "arctic glacier blue ice", "moving clouds timelapse sky", "northern lights aurora borealis",
+    "sunlight rays through forest trees"
 ]
 
 def get_dynamic_music():
