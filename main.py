@@ -23,26 +23,12 @@ STRICT_TOPICS = [
     "sunlight rays through forest trees"
 ]
 
-# Dynamic Content Lists
 DYNAMIC_TITLES = ["Pure Nature", "Wild Beauty", "Earth Magic", "Nature View", "Green Serene", "Deep Nature", "Quiet Wild", "Raw Earth"]
 DYNAMIC_CAPTIONS = ["Magic is real", "Silent forest", "Peaceful vibes", "Clean nature", "Green world", "Fresh air", "Hidden gem", "Pure spirit"]
-
-# Minimum 8 Hashtags
-HASHTAGS = "#nature #wildlife #serenity #earth #landscape #adventure #explore #greenery #scenery #wildlifephotography #naturelovers"
-
-def check_and_reset_history(file_path):
-    """24 ghante baad history saaf karna"""
-    if os.path.exists(file_path):
-        file_age_seconds = time.time() - os.path.getmtime(file_path)
-        if file_age_seconds >= 86400: # 24 Hours
-            with open(file_path, 'w') as f:
-                f.write('')
-            print("History Reset: 24 ghante poore ho gaye.")
-            return True
-    return False
+HASHTAGS = "#nature #wildlife #serenity #earth #landscape #adventure #explore #greenery #scenery #wildlifephotography"
 
 def get_dynamic_music():
-    """Dynamic Nature Music (Freesound) [cite: 2025-12-23]"""
+    """Freesound se random music download karna [cite: 2025-12-23]"""
     try:
         random_page = random.randint(1, 100)
         url = f"https://freesound.org/apiv2/search/text/?query=nature+ambient+birds&token={FREESOUND_API_KEY}&filter=duration:[10 TO 60]&fields=id,previews&page={random_page}"
@@ -51,64 +37,90 @@ def get_dynamic_music():
         if results:
             music_url = random.choice(results)['previews']['preview-hq-mp3']
             r = requests.get(music_url, timeout=20)
-            with open("bg_music.mp3", "wb") as f: f.write(r.content)
-            if os.path.getsize("bg_music.mp3") > 5000: return "bg_music.mp3"
+            with open("bg_music.mp3", "wb") as f:
+                f.write(r.content)
+            if os.path.getsize("bg_music.mp3") > 5000:
+                return "bg_music.mp3"
     except: return None
 
-def add_bg_music(v_path, m_path, out_path):
-    """Audio-Video Merging [cite: 2025-12-23]"""
+def merge_video_audio(video_path, music_path, output_path):
+    """Step: Video aur Audio ko merge karna"""
     try:
-        video = mp.VideoFileClip(v_path)
-        audio = mp.AudioFileClip(m_path)
+        video = mp.VideoFileClip(video_path)
+        audio = mp.AudioFileClip(music_path)
+
+        # Audio ko video ki length ke barabar adjust karna
         if audio.duration < video.duration:
             audio = audio_loop(audio, duration=video.duration)
         else:
             audio = audio.set_duration(video.duration)
+
+        # Merge process
         final_video = video.set_audio(audio.volumex(1.4))
-        final_video.write_videofile(out_path, codec="libx264", audio_codec="aac", temp_audiofile='temp-audio.m4a', remove_temp=True, fps=24, logger=None)
-        video.close(); audio.close()
-        return out_path
-    except: return None
+        
+        # HD Quality Export (Standard HD)
+        final_video.write_videofile(output_path, codec="libx264", audio_codec="aac", temp_audiofile='temp-audio.m4a', remove_temp=True, fps=24, logger=None)
+        
+        video.close()
+        audio.close()
+        return output_path
+    except Exception as e:
+        print(f"Merging Error: {e}")
+        return None
 
 def run_automation():
-    history_file = 'posted_videos.txt'
-    check_and_reset_history(history_file)
+    # 1. Topic Selection
+    topic = random.choice(STRICT_TOPICS)
     
+    # 2. History Check
+    history_file = 'posted_videos.txt'
     if not os.path.exists(history_file): open(history_file, 'w').close()
     with open(history_file, 'r') as f: posted_ids = f.read().splitlines()
 
-    topic = random.choice(STRICT_TOPICS)
+    # 3. Pexels Video Fetch
     url = f"https://api.pexels.com/videos/search?query={topic}&per_page=80&orientation=portrait"
     v_resp = requests.get(url, headers={"Authorization": PEXELS_API_KEY}).json()
     videos = v_resp.get('videos', [])
     random.shuffle(videos)
 
     for vid in videos:
+        # Rules: 5-10s, No-repeat, No man-made
         if str(vid['id']) not in posted_ids and 5 <= vid.get('duration', 0) <= 10:
             v_files = vid.get('video_files', [])
-            best_v = next((f['link'] for f in v_files if 720 <= f['width'] <= 1920), v_files[0]['link'])
+            best_v_url = next((f['link'] for f in v_files if 720 <= f['width'] <= 1920), v_files[0]['link'])
+
+            # Video download karna
+            with open("raw_video.mp4", 'wb') as f:
+                f.write(requests.get(best_v_url).content)
             
-            with open("temp.mp4", 'wb') as f: f.write(requests.get(best_v).content)
-            music = get_dynamic_music()
+            # 4. Freesound Music Fetch [cite: 2025-12-23]
+            music_file = get_dynamic_music()
             
-            if music:
-                final = add_bg_music("temp.mp4", music, "final.mp4")
-                if final:
-                    # Dynamic Title, Caption, aur 8+ Hashtags
+            if music_file:
+                # 5. Merging Script (Merging before sending)
+                final_output = "nature_post.mp4"
+                processed_video = merge_video_audio("raw_video.mp4", music_file, final_output)
+                
+                if processed_video:
+                    # 6. Delivery (Telegram & Webhook)
                     title = random.choice(DYNAMIC_TITLES)[:15]
                     caption = random.choice(DYNAMIC_CAPTIONS)[:15]
                     full_desc = f"🎬 {title}\n\n{caption}\n\n{HASHTAGS}"
-                    
-                    # Post to Telegram
-                    with open(final, 'rb') as v:
+
+                    # Send to Telegram
+                    with open(processed_video, 'rb') as v:
                         requests.post(f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendVideo", 
                                       data={"chat_id": TELEGRAM_CHAT_ID, "caption": full_desc}, files={"video": v})
                     
-                    # Post to Make.com Webhook
+                    # Send to Webhook (Make.com)
                     if MAKE_WEBHOOK_URL:
-                        requests.post(MAKE_WEBHOOK_URL, json={"title": title, "video_url": best_v, "caption": full_desc})
+                        requests.post(MAKE_WEBHOOK_URL, json={"title": title, "video_url": best_v_url, "caption": full_desc})
 
-                    with open(history_file, 'a') as f: f.write(str(vid['id']) + '\n')
+                    # History Update
+                    with open(history_file, 'a') as f:
+                        f.write(str(vid['id']) + '\n')
+                    
+                    print(f"Successfully posted: {title}")
                     return
 
 if __name__ == "__main__":
