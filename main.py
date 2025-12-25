@@ -2,7 +2,6 @@ import requests
 import random
 import os
 import subprocess
-import time
 
 # API Keys
 PEXELS_API_KEY = os.getenv('PEXELS_API_KEY')
@@ -41,31 +40,17 @@ def get_dynamic_music():
             return "bg_music.mp3"
     except: return None
 
-def merge_compulsory_reencode(v_path, m_path, out_path):
-    """FFmpeg Re-encoding: Yeh audio ko video ke sath zabardasti lock kar deta hai"""
+def merge_now(v_path, m_path, out_path):
+    """FFmpeg Merge: Physical lock of audio and video"""
     try:
-        # Command: Re-encode audio to AAC and video to H.264, forcing a mix
         cmd = [
-            'ffmpeg', '-y',
-            '-i', v_path,
-            '-stream_loop', '-1',
-            '-i', m_path,
-            '-c:v', 'libx264', # Video re-encode for safety
-            '-c:a', 'aac',     # Audio re-encode to AAC
-            '-map', '0:v:0',
-            '-map', '1:a:0',
-            '-shortest',
-            '-pix_fmt', 'yuv420p', # Compatibility for Telegram/Mobile
-            out_path
+            'ffmpeg', '-y', '-i', v_path, '-stream_loop', '-1', '-i', m_path,
+            '-c:v', 'libx264', '-c:a', 'aac', '-map', '0:v:0', '-map', '1:a:0',
+            '-shortest', '-pix_fmt', 'yuv420p', out_path
         ]
         subprocess.run(cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        
-        # Validation: Kya file bani aur kya usme audio hai?
-        if os.path.exists(out_path) and os.path.getsize(out_path) > 5000:
-            return True
-    except Exception as e:
-        print(f"Merge Error: {e}")
-    return False
+        return os.path.exists(out_path) and os.path.getsize(out_path) > 5000
+    except: return False
 
 def run_automation():
     topic = random.choice(STRICT_TOPICS)
@@ -81,35 +66,30 @@ def run_automation():
     for vid in videos:
         if str(vid['id']) not in posted_ids and 5 <= vid.get('duration', 0) <= 15:
             v_url = next(f['link'] for f in vid['video_files'] if f['width'] >= 720)
-            
-            # Download Raw Video
             with open("raw.mp4", 'wb') as f: f.write(requests.get(v_url).content)
             
-            # Download Music [cite: 2025-12-23]
             music = get_dynamic_music()
-            
             if music:
                 final_video = "final_output.mp4"
-                # COMPULSORY MERGE CHECK
-                if merge_compulsory_reencode("raw.mp4", music, final_video):
+                if merge_now("raw.mp4", music, final_video):
                     title = random.choice(DYNAMIC_TITLES)[:15]
                     caption = random.choice(DYNAMIC_CAPTIONS)[:15]
                     full_desc = f"🎬 {title}\n\n{caption}\n\n{HASHTAGS}"
 
-                    # 1. Telegram Post
+                    # 1. Telegram Post (Merged file)
                     with open(final_video, 'rb') as v:
                         requests.post(f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendVideo", 
                                       data={"chat_id": TELEGRAM_CHAT_ID, "caption": full_desc}, files={"video": v})
                     
-                    # 2. Make.com Webhook Post
+                    # 2. Make.com Webhook (SOLVED: Sending Merged File instead of URL)
                     if MAKE_WEBHOOK_URL:
-                        requests.post(MAKE_WEBHOOK_URL, json={"title": title, "video_url": v_url, "caption": full_desc})
+                        with open(final_video, 'rb') as v:
+                            files = {'file': (final_video, v, 'video/mp4')}
+                            data = {'title': title, 'caption': full_desc}
+                            requests.post(MAKE_WEBHOOK_URL, data=data, files=files)
 
                     with open(history_file, 'a') as f: f.write(str(vid['id']) + '\n')
-                    print(f"Success! Merged video posted for {topic}")
                     return
-                else:
-                    print("Merge failed, trying next video...")
 
 if __name__ == "__main__":
     run_automation()
