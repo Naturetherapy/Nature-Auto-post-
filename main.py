@@ -44,7 +44,7 @@ def get_dynamic_music():
 def merge_video_audio(v_path, m_path, out_path):
     """FFmpeg se video aur audio ko physically merge karna"""
     try:
-        # Command jo audio ko loop karke video ke sath lock kar deti hai
+        # Command jo audio ko loop karke video ke sath permanently merge kar deti hai
         cmd = [
             'ffmpeg', '-y', '-i', v_path, '-stream_loop', '-1', '-i', m_path,
             '-c:v', 'libx264', '-c:a', 'aac', '-map', '0:v:0', '-map', '1:a:0',
@@ -52,7 +52,9 @@ def merge_video_audio(v_path, m_path, out_path):
         ]
         subprocess.run(cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         return os.path.exists(out_path) and os.path.getsize(out_path) > 10000
-    except: return False
+    except Exception as e:
+        print(f"Merge Error: {e}")
+        return False
 
 def run_automation():
     topic = random.choice(STRICT_TOPICS)
@@ -67,38 +69,40 @@ def run_automation():
     random.shuffle(videos)
 
     for vid in videos:
+        # Strict Rule Check
         if str(vid['id']) not in posted_ids and 5 <= vid.get('duration', 0) <= 15:
             v_url = next(f['link'] for f in vid['video_files'] if f['width'] >= 720)
             
             # 1. Video Download
             with open("raw.mp4", 'wb') as f: f.write(requests.get(v_url).content)
             
-            # 2. FreeSound se Music Download [cite: 2025-12-23]
+            # 2. Music Download [cite: 2025-12-23]
             music = get_dynamic_music()
             
             if music:
-                final_video = "final_ready.mp4"
-                # 3. MERGE (Bina marj ke send nahi hoga)
+                final_video = "final_output_merged.mp4"
+                # 3. COMPULSORY MERGE (Pehle merge hoga tabhi send hoga)
                 if merge_video_audio("raw.mp4", music, final_video):
                     title = random.choice(DYNAMIC_TITLES)[:15]
                     caption = random.choice(DYNAMIC_CAPTIONS)[:15]
                     full_desc = f"🎬 {title}\n\n{caption}\n\n{HASHTAGS}"
 
-                    # 4. Parallel Sending (Telegram aur Webhook dono ko file jayegi)
-                    # Telegram Post
+                    # 4. Parallel Sending
+                    # Telegram Send (Merged File)
                     with open(final_video, 'rb') as v:
                         requests.post(f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendVideo", 
                                       data={"chat_id": TELEGRAM_CHAT_ID, "caption": full_desc}, files={"video": v})
                     
-                    # Make.com Webhook (Direct Merged File Sending)
+                    # Make.com Webhook Send (Direct File Upload)
                     if MAKE_WEBHOOK_URL:
                         with open(final_video, 'rb') as v:
+                            # Is bar URL nahi, seedha video file bhej rahe hain
                             files = {'file': (final_video, v, 'video/mp4')}
-                            data = {'title': title, 'caption': full_desc}
-                            requests.post(MAKE_WEBHOOK_URL, data=data, files=files)
+                            payload = {'title': title, 'caption': full_desc}
+                            requests.post(MAKE_WEBHOOK_URL, data=payload, files=files)
 
                     with open(history_file, 'a') as f: f.write(str(vid['id']) + '\n')
-                    print(f"Success: Merged Video sent to Telegram & Webhook!")
+                    print(f"Success: Merged Video sent for {topic}")
                     return
 
 if __name__ == "__main__":
