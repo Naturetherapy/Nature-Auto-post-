@@ -8,7 +8,7 @@ TELEGRAM_CHAT_ID = os.getenv('TELEGRAM_CHAT_ID')
 MAKE_WEBHOOK_URL = os.getenv('MAKE_WEBHOOK_URL')
 
 HISTORY_FILE = "posted_history.txt"
-FIXED_HASHTAGS = "#nature #wildlife #serenity #earth #landscape #adventure #explore #scenery"
+FIXED_HASHTAGS = "# shorts #nature #wildlife #serenity #earth #landscape #adventure #explore #greenery" # 8 Fixed Hashtags
 
 STRICT_TOPICS = [
     "Tropical Beach Waves", "Amazon Rainforest Rain", "Himalayan Snow Peaks",
@@ -31,7 +31,7 @@ def save_to_history(v_id, a_id):
     with open(HISTORY_FILE, "a") as f: f.write(f"{v_id}\n{a_id}\n")
 
 def get_unique_music(history):
-    """NoneType error fix karne ke liye safety check"""
+    """NoneType error fix"""
     try:
         r_page = random.randint(1, 60)
         url = f"https://freesound.org/apiv2/search/text/?query=nature+ambient&token={FREESOUND_API_KEY}&filter=duration:[10 TO 25]&fields=id,previews&page={r_page}"
@@ -54,9 +54,9 @@ def run_automation():
     history = get_history()
     topic = random.choice(STRICT_TOPICS)
     
-    # Title limit 90 tak rakhi hai taaki YouTube error na aaye
-    title = f"{random.choice(['Peaceful', 'Majestic', 'Pure'])} {topic} Magic".strip()[:90]
-    description = f"Beautiful nature scene of {topic}. Relax and enjoy."
+    # Title limit set to 50 characters
+    title = f"{random.choice(['Pure', 'Calm', 'Wild'])} {topic} Magic".strip()[:50]
+    description = f"Relax with the beautiful sight of {topic}."
     
     v_resp = requests.get(f"https://api.pexels.com/videos/search?query={topic}&per_page=15&orientation=portrait", 
                           headers={"Authorization": PEXELS_API_KEY}, timeout=10).json()
@@ -67,9 +67,9 @@ def run_automation():
             v_link = next((f['link'] for f in vid['video_files'] if f['width'] >= 1080), vid['video_files'][0]['link'])
             
             music_file, a_id = get_unique_music(history)
-            if not music_file: continue # Agar music nahi mila toh skip karega
+            if not music_file: continue # Safety skip
             
-            # Fast Merge
+            # Fast FFmpeg Merge
             cmd = ['ffmpeg', '-y', '-i', v_link, '-i', music_file, '-c:v', 'copy', '-c:a', 'aac', '-map', '0:v:0', '-map', '1:a:0', '-shortest', '-preset', 'ultrafast', 'final.mp4']
             subprocess.run(cmd, check=True, timeout=30)
             
@@ -80,8 +80,10 @@ def run_automation():
                 
                 if merged_url.startswith('http'):
                     caption = f"{title}\n\n{description}\n\n{FIXED_HASHTAGS}"
+                    # Telegram Direct
                     requests.post(f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendVideo", data={"chat_id": TELEGRAM_CHAT_ID, "caption": caption}, files={"video": open("final.mp4", 'rb')})
                     
+                    # Webhook Redirect
                     if MAKE_WEBHOOK_URL:
                         requests.post(MAKE_WEBHOOK_URL, json={"video_url": merged_url, "title": title, "caption": caption})
                     
