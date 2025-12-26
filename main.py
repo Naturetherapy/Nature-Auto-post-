@@ -15,6 +15,12 @@ STRICT_TOPICS = [
     "deep ocean waves", "crystal clear waterfall", "underwater coral reef",
     "misty pine forest", "rainforest canopy", "snowy mountain peaks",
     "desert sand dunes", "arctic glacier", "sunlight rays forest"
+    "Tropical Beach Waves", "Amazon Rainforest Rain", "Himalayan Snow Peaks",
+    "Autumn Forest Creek", "Sahara Desert Dunes", "Deep Ocean Blue",
+    "Thunderstorm in Woods", "Crystal Waterfall", "Bamboo Forest Wind",
+    "Sunrise Mountain Mist", "Pine Forest Snow", "Coral Reef Underwater",
+    "Wildflower Meadow", "Volcanic Lava Flow", "Icelandic Glaciers",
+    "Northern Lights Aurora", "Spring Garden Birds", "Rocky Canyon River"
 ]
 
 def get_history():
