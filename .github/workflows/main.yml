@@ -1,32 +1,40 @@
-name: Pure Nature Automation Final
+name: Run Nature Bot
 
 on:
   schedule:
-    - cron: '0 0,6,12,18 * * *'
-  workflow_dispatch:
+    # 4:45 PM IST -> 11:15 AM UTC
+    - cron: '15 11 * * *'
+    # 7:30 AM IST -> 2:00 AM UTC
+    - cron: '0 2 * * *'
+    # 9:45 PM IST -> 4:15 PM UTC
+    - cron: '15 16 * * *'
+    # 4:00 AM IST -> 10:30 PM UTC (Pichle din ka UTC)
+    - cron: '30 22 * * *'
+  workflow_dispatch: # Manual testing ke liye button
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    # GitHub ko file save karne ki permission dena zaroori hai
     permissions:
       contents: write
-    steps:
-      - uses: actions/checkout@v3
 
-      - name: Install System FFmpeg
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y ffmpeg libavcodec-extra
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
 
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.9'
 
-      - name: Install Requests
-        run: pip install requests
+      - name: Install Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+          pip install requests
 
-      - name: Run Nature Bot
+      - name: Run Nature Bot Script
         env:
           PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
           FREESOUND_API_KEY: ${{ secrets.FREESOUND_API_KEY }}
@@ -35,10 +43,13 @@ jobs:
           MAKE_WEBHOOK_URL: ${{ secrets.MAKE_WEBHOOK_URL }}
         run: python main.py
 
-      - name: Update History
+      - name: Save History and Push Changes
         run: |
-          git config --local user.email "bot@github.com"
-          git config --local user.name "GitHub Action Bot"
-          git add posted_videos.txt
-          git commit -m "Update history [skip ci]" || echo "No changes"
-          git push
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          # Agar history file bani hai toh use save karo
+          if [ -f posted_history.txt ]; then
+            git add posted_history.txt
+            git commit -m "Update posting history [skip ci]" || echo "No changes to commit"
+            git push
+          fi
