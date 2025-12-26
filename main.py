@@ -22,7 +22,7 @@ STRICT_TOPICS = [
     "sunlight rays through forest trees"
 ]
 
-HASHTAGS = "#nature #wildlife #serenity #earth #landscape #adventure #explore #greenery #scenery #wildlifephotography"
+HASHTAGS = "#naHASHTAGS = "#shorts #nature #wildlife #serenity #earth #landscape #adventure #explore #greenery #scenery #wildl
 
 def get_fast_music():
     """Freesound se background music fetch karna [cite: 2025-12-23]"""
