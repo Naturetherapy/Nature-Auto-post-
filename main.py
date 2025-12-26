@@ -8,13 +8,13 @@ TELEGRAM_CHAT_ID = os.getenv('TELEGRAM_CHAT_ID')
 MAKE_WEBHOOK_URL = os.getenv('MAKE_WEBHOOK_URL')
 
 HISTORY_FILE = "posted_history.txt"
-# Aapke fixed hashtags
-FIXED_HASHTAGS = "# shorts #nature #wildlife #serenity #earth #landscape #adventure #explore #scenery"
+FIXED_HASHTAGS = "#nature #wildlife #serenity #earth #landscape #adventure #explore #scenery"
 
 STRICT_TOPICS = [
-    "deep ocean waves", "crystal clear waterfall", "underwater coral reef",
-    "misty pine forest", "rainforest canopy", "snowy mountain peaks",
-    "desert sand dunes", "arctic glacier", "sunlight rays forest"
+    "Tropical Beach Waves", "Amazon Rainforest Rain", "Himalayan Snow Peaks",
+    "Autumn Forest Creek", "Sahara Desert Dunes", "Deep Ocean Blue",
+    "Thunderstorm in Woods", "Crystal Waterfall", "Bamboo Forest Wind",
+    "Sunrise Mountain Mist", "Pine Forest Snow", "Coral Reef Underwater"
     "Tropical Beach Waves", "Amazon Rainforest Rain", "Himalayan Snow Peaks",
     "Autumn Forest Creek", "Sahara Desert Dunes", "Deep Ocean Blue",
     "Thunderstorm in Woods", "Crystal Waterfall", "Bamboo Forest Wind",
@@ -30,17 +30,10 @@ def get_history():
 def save_to_history(v_id, a_id):
     with open(HISTORY_FILE, "a") as f: f.write(f"{v_id}\n{a_id}\n")
 
-def get_dynamic_metadata(topic):
-    """Title aur Description har baar badlega"""
-    adjectives = ["Peaceful", "Majestic", "Wild", "Pure", "Calm", "Serene", "Mystic"]
-    title = f"{random.choice(adjectives)} {topic.title()} View".strip()[:50]
-    description = f"Experience the raw beauty of {topic}. Pure relaxation."
-    return title, description
-
 def get_unique_music(history):
-    """Broad search taaki NoneType error na aaye"""
+    """NoneType error fix karne ke liye safety check"""
     try:
-        r_page = random.randint(1, 50)
+        r_page = random.randint(1, 60)
         url = f"https://freesound.org/apiv2/search/text/?query=nature+ambient&token={FREESOUND_API_KEY}&filter=duration:[10 TO 25]&fields=id,previews&page={r_page}"
         resp = requests.get(url, timeout=10).json()
         results = resp.get('results', [])
@@ -60,9 +53,11 @@ def run_automation():
     start_time = time.time()
     history = get_history()
     topic = random.choice(STRICT_TOPICS)
-    title, description = get_dynamic_metadata(topic)
     
-    # 1. HD Video Fetch
+    # Title limit 90 tak rakhi hai taaki YouTube error na aaye
+    title = f"{random.choice(['Peaceful', 'Majestic', 'Pure'])} {topic} Magic".strip()[:90]
+    description = f"Beautiful nature scene of {topic}. Relax and enjoy."
+    
     v_resp = requests.get(f"https://api.pexels.com/videos/search?query={topic}&per_page=15&orientation=portrait", 
                           headers={"Authorization": PEXELS_API_KEY}, timeout=10).json()
     
@@ -71,11 +66,10 @@ def run_automation():
         if v_id not in history and 10 <= vid.get('duration', 0) <= 25:
             v_link = next((f['link'] for f in vid['video_files'] if f['width'] >= 1080), vid['video_files'][0]['link'])
             
-            # 2. Music Fetch [cite: 2025-12-23]
             music_file, a_id = get_unique_music(history)
-            if not music_file: continue 
+            if not music_file: continue # Agar music nahi mila toh skip karega
             
-            # 3. Fast Combine & Delivery
+            # Fast Merge
             cmd = ['ffmpeg', '-y', '-i', v_link, '-i', music_file, '-c:v', 'copy', '-c:a', 'aac', '-map', '0:v:0', '-map', '1:a:0', '-shortest', '-preset', 'ultrafast', 'final.mp4']
             subprocess.run(cmd, check=True, timeout=30)
             
@@ -85,18 +79,14 @@ def run_automation():
                     merged_url = up.text.strip()
                 
                 if merged_url.startswith('http'):
-                    # Caption mein Title, Description dynamic hain, Hashtags fix hain
-                    caption = f"🎬 {title}\n\n{description}\n\n{FIXED_HASHTAGS}"
-                    
-                    # Telegram & Webhook Delivery
-                    requests.post(f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendVideo", 
-                                  data={"chat_id": TELEGRAM_CHAT_ID, "caption": caption}, files={"video": open("final.mp4", 'rb')})
+                    caption = f"{title}\n\n{description}\n\n{FIXED_HASHTAGS}"
+                    requests.post(f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendVideo", data={"chat_id": TELEGRAM_CHAT_ID, "caption": caption}, files={"video": open("final.mp4", 'rb')})
                     
                     if MAKE_WEBHOOK_URL:
-                        requests.post(MAKE_WEBHOOK_URL, json={"video_url": merged_url, "caption": caption})
+                        requests.post(MAKE_WEBHOOK_URL, json={"video_url": merged_url, "title": title, "caption": caption})
                     
                     save_to_history(v_id, a_id)
-                    print(f"Success! Posted: {title}")
+                    print(f"Success! {title}")
                     return
 
 if __name__ == "__main__":
