@@ -10,7 +10,6 @@ TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
 TELEGRAM_CHAT_ID = os.getenv('TELEGRAM_CHAT_ID')
 MAKE_WEBHOOK_URL = os.getenv('MAKE_WEBHOOK_URL')
 
-# Ultra-Strict Nature Topics
 STRICT_TOPICS = [
     "deep ocean waves white foam no people", "crystal clear waterfall rocks no bridge",
     "underwater coral reef fish", "frozen lake ice patterns", "mountain stream forest rocks",
@@ -26,7 +25,7 @@ DYNAMIC_CAPTIONS = ["Magic is real", "Silent forest", "Peaceful vibes", "Clean n
 HASHTAGS = "#nature #wildlife #serenity #earth #landscape #adventure #explore #greenery #scenery #wildlifephotography"
 
 def get_dynamic_music():
-    """Freesound.org se background music pick karna [cite: 2025-12-23]"""
+    """Freesound.org se music download [cite: 2025-12-23]"""
     try:
         r_page = random.randint(1, 100)
         url = f"https://freesound.org/apiv2/search/text/?query=nature+ambient+birds&token={FREESOUND_API_KEY}&filter=duration:[10 TO 60]&fields=id,previews&page={r_page}"
@@ -41,20 +40,26 @@ def get_dynamic_music():
             return "bg_music.mp3"
     except: return None
 
-def merge_video_audio(v_path, m_path, out_path):
-    """FFmpeg se video aur audio ko physically merge karna"""
+def upload_and_get_url(file_path):
+    """Merged file ko upload karke uska URL lena"""
     try:
-        # Command jo audio ko loop karke video ke sath permanently merge kar deti hai
+        with open(file_path, 'rb') as f:
+            # File.io par upload (yeh 1-2 hafte tak valid rehta hai)
+            response = requests.post('https://file.io', files={'file': f})
+            return response.json().get('link')
+    except: return None
+
+def merge_now(v_path, m_path, out_path):
+    """FFmpeg Physical Merge"""
+    try:
         cmd = [
             'ffmpeg', '-y', '-i', v_path, '-stream_loop', '-1', '-i', m_path,
             '-c:v', 'libx264', '-c:a', 'aac', '-map', '0:v:0', '-map', '1:a:0',
             '-shortest', '-pix_fmt', 'yuv420p', out_path
         ]
         subprocess.run(cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        return os.path.exists(out_path) and os.path.getsize(out_path) > 10000
-    except Exception as e:
-        print(f"Merge Error: {e}")
-        return False
+        return os.path.exists(out_path)
+    except: return False
 
 def run_automation():
     topic = random.choice(STRICT_TOPICS)
@@ -62,48 +67,44 @@ def run_automation():
     if not os.path.exists(history_file): open(history_file, 'w').close()
     with open(history_file, 'r') as f: posted_ids = f.read().splitlines()
 
-    # Pexels se video pickup karna
     v_resp = requests.get(f"https://api.pexels.com/videos/search?query={topic}&per_page=40&orientation=portrait", 
                           headers={"Authorization": PEXELS_API_KEY}).json()
     videos = v_resp.get('videos', [])
     random.shuffle(videos)
 
     for vid in videos:
-        # Strict Rule Check
         if str(vid['id']) not in posted_ids and 5 <= vid.get('duration', 0) <= 15:
             v_url = next(f['link'] for f in vid['video_files'] if f['width'] >= 720)
-            
-            # 1. Video Download
             with open("raw.mp4", 'wb') as f: f.write(requests.get(v_url).content)
             
-            # 2. Music Download [cite: 2025-12-23]
             music = get_dynamic_music()
-            
             if music:
-                final_video = "final_output_merged.mp4"
-                # 3. COMPULSORY MERGE (Pehle merge hoga tabhi send hoga)
-                if merge_video_audio("raw.mp4", music, final_video):
-                    title = random.choice(DYNAMIC_TITLES)[:15]
-                    caption = random.choice(DYNAMIC_CAPTIONS)[:15]
-                    full_desc = f"🎬 {title}\n\n{caption}\n\n{HASHTAGS}"
-
-                    # 4. Parallel Sending
-                    # Telegram Send (Merged File)
-                    with open(final_video, 'rb') as v:
-                        requests.post(f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendVideo", 
-                                      data={"chat_id": TELEGRAM_CHAT_ID, "caption": full_desc}, files={"video": v})
+                final_video = "final_merged.mp4"
+                if merge_now("raw.mp4", music, final_video):
+                    # Step 1: Merged video ka URL banayein
+                    merged_url = upload_and_get_url(final_video)
                     
-                    # Make.com Webhook Send (Direct File Upload)
-                    if MAKE_WEBHOOK_URL:
-                        with open(final_video, 'rb') as v:
-                            # Is bar URL nahi, seedha video file bhej rahe hain
-                            files = {'file': (final_video, v, 'video/mp4')}
-                            payload = {'title': title, 'caption': full_desc}
-                            requests.post(MAKE_WEBHOOK_URL, data=payload, files=files)
+                    if merged_url:
+                        title = random.choice(DYNAMIC_TITLES)[:15]
+                        caption = random.choice(DYNAMIC_CAPTIONS)[:15]
+                        full_desc = f"🎬 {title}\n\n{caption}\n\n{HASHTAGS}"
 
-                    with open(history_file, 'a') as f: f.write(str(vid['id']) + '\n')
-                    print(f"Success: Merged Video sent for {topic}")
-                    return
+                        # 2. Telegram: Direct File
+                        with open(final_video, 'rb') as v:
+                            requests.post(f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendVideo", 
+                                          data={"chat_id": TELEGRAM_CHAT_ID, "caption": full_desc}, files={"video": v})
+                        
+                        # 3. Webhook: SENDING MERGED URL
+                        if MAKE_WEBHOOK_URL:
+                            payload = {
+                                "title": title,
+                                "video_url": merged_url, # Ab merged wala link jayega
+                                "caption": full_desc
+                            }
+                            requests.post(MAKE_WEBHOOK_URL, json=payload)
+
+                        with open(history_file, 'a') as f: f.write(str(vid['id']) + '\n')
+                        return
 
 if __name__ == "__main__":
     run_automation()
